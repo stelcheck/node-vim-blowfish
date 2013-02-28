@@ -10,7 +10,7 @@ To be able to implement a system where certain sensitive files would be encrypte
 * blowfish
 * crypted file is file
 * password is test
-* The Perl script comes from [Yuri Vlokov](http://yuri-volkov.com/?page_id=9), with small modification. This is the inspiration for this effort.
+* The Perl script comes from [Yuri Volkov](http://yuri-volkov.com/?page_id=9), with small modification. This is the inspiration for this effort.
 
 ## So far
 
