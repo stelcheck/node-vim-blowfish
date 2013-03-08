@@ -70,19 +70,20 @@ function decrypt(binKey, iv, contents) {
 	}
 
 	var cLen = contents.length;
+	var cLen1 = cLen - 1; // off by 1
 	var cPos = 0;
 	var output = new Buffer(cLen);
 
 	var numBlocks = Math.ceil(cLen / blockLen);
 
 	for (var blockNumber=0; blockNumber < numBlocks; blockNumber++) {
-		var remainingBytes = cLen - 1 - cPos;
+		var remainingBytes = cLen1 - cPos;
 		var thisBlockLen = Math.min(blockLen, remainingBytes);
 		for (var i=0; i<thisBlockLen; i++) {
 			cPos = blockNumber * blockLen + i;
 			output[cPos] = keystream[i] ^ contents[cPos];
 		}
-		if (cPos >= cLen) {
+		if (cPos >= cLen1) {
 			break;
 		}
 		var newSeed = flipEndian(contents.slice(cPos-blockLen+1, cPos+1));
