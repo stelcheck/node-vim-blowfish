@@ -1,12 +1,6 @@
-// bf             bf-cbc         bf-cfb
-// bf-ecb         bf-ofb
+
 var crypto  = require('crypto');
 var fs      = require('fs');
-var data    = fs.readFileSync('file');
-var pass    = 'test';
-
-var header = data.slice(0, 12);
-var isEncrypted = header.toString() === 'VimCrypt~02!';
 
 
 function getKey(password, salt) {
@@ -29,6 +23,7 @@ function getKey(password, salt) {
 
 	return key;
 }
+exports.getKey = getKey;
 
 
 function flipEndian(inData) {
@@ -40,6 +35,7 @@ function flipEndian(inData) {
 	}
 	return outData;
 }
+exports.flipEndian = flipEndian;
 
 
 function repeatBuffer(inBuffer, n) {
@@ -54,44 +50,76 @@ function repeatBuffer(inBuffer, n) {
 	}
 	return out;
 }
+exports.repeatBuffer = repeatBuffer;
 
 
-if (isEncrypted) {
-    var salt = data.slice(12,20);
-    var iv   = data.slice(20,28);
-	var contents = data.slice(28);
-
-    var key = getKey(pass, salt);
-	console.log(' key: ', key);
-	var binKey = new Buffer(key, 'hex');
-
+function decrypt(binKey, iv, contents) {
     /**
      * Decryption process
      */
     var bf = crypto.createCipheriv('bf-ecb', binKey, '');
-
-
-	//   ****************
-	// TODO:  FIXME:  This only decrypts the first block
-	//   ****************
 
 	// Initialize the keystream:
 	iv_be = repeatBuffer(flipEndian(iv), 8);
 	var keystream_be = new Buffer(bf.update(iv_be, 'binary'), 'binary');
 	var keystream = flipEndian(keystream_be);
 
-    console.log('\n    ****  Decrypting ONLY the first block:');
-
-	var blockLen = 64;
-	blockLen = Math.min(blockLen, keystream.length);
-	blockLen = Math.min(blockLen, contents.length);
-
-	var output = new Buffer(blockLen);
-    for (var i=0; i<blockLen; i++) {
-		output[i] = keystream[i] ^ contents[i];
+	var blockLen = keystream.length;
+	if (blockLen !== 64) {
+		console.log('WARNING:  expecting a blockLen of 64 bytes...');
 	}
 
-	console.log(output.toString());
-}
+	var cLen = contents.length;
+	var cPos = 0;
+	var output = new Buffer(cLen);
 
+	var numBlocks = Math.ceil(cLen / blockLen);
+
+	for (var blockNumber=0; blockNumber < numBlocks; blockNumber++) {
+		var remainingBytes = cLen - 1 - cPos;
+		var thisBlockLen = Math.min(blockLen, remainingBytes);
+		for (var i=0; i<thisBlockLen; i++) {
+			cPos = blockNumber * blockLen + i;
+			output[cPos] = keystream[i] ^ contents[cPos];
+		}
+		if (cPos >= cLen) {
+			break;
+		}
+		var newSeed = flipEndian(contents.slice(cPos-blockLen+1, cPos+1));
+		keystream = flipEndian(new Buffer(bf.update(newSeed, 'binary'), 'binary'));
+	}
+	return output;
+}
+exports.decrypt = decrypt;
+
+
+function decryptFile(filename, password) {
+	var data    = fs.readFileSync(filename);
+
+	var header = data.slice(0, 12);
+	if (header.toString() == 'VimCrypt~02!') {
+		var salt = data.slice(12,20);
+		var iv   = data.slice(20,28);
+		var contents = data.slice(28);
+
+		var key = getKey(password, salt);
+		console.log(' key: ', key);
+		var binKey = new Buffer(key, 'hex');
+
+		return decrypt(binKey, iv, contents);
+	} else {
+		console.log('Cannot read file.  Only VimCrypt-2 is supported.');
+		return;
+	}
+}
+exports.decryptFile = decryptFile;
+
+
+
+/**
+ *  usage:  decryptFile(filename, password)
+ */
+
+var output = decryptFile('const.txt', 'test');
+console.log(output.toString());
 
