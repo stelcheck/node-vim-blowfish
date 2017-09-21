@@ -38,7 +38,7 @@ close FILE;
 # Read salt and initialization vector (IV) from the file header
 # or generate new salt and IV if the file is not encrypted
 
-if ( $buffer =~ /^VimCrypt~02!.{8}.{8}/ )  # if file is encrypted
+if ( $buffer =~ /^VimCrypt~02!.{8}.{8}/s )  # if file is encrypted
 {
     $salt = substr($buffer, 12, 8);
     $iv = substr($buffer, 12+8, 8);
@@ -133,7 +133,7 @@ sub encrypt()
 
     my ( @ptext, @ctext, $i );
 
-    @ptext = $_[0] =~ /.{8}/g;  # split $_[0] into 8 bytes long chunks
+    @ptext = $_[0] =~ /.{8}/sg;  # split $_[0] into 8 bytes long chunks
 
     for ( $i = 0; $i < @ptext; $i++ )
     {
